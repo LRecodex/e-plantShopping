@@ -2,15 +2,20 @@ import React, { useState } from 'react';
 import './ProductList.css';
 import CartItem from './CartItem';
 
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { addItem } from './CartSlice';
 
 function ProductList({ onHomeClick }) {
     const dispatch = useDispatch();
 
+    // 👇 derive from Redux
+    const cartItems = useSelector(state => state.cart.items);
+    const cartCount = useSelector(state =>
+        state.cart.items.reduce((sum, it) => sum + it.quantity, 0)
+    );
+
     const [showCart, setShowCart] = useState(false);
     const [showPlants, setShowPlants] = useState(false);
-    const [addedToCart, setAddedToCart] = useState({});
 
     const plantsArray = [
         {
@@ -76,7 +81,7 @@ function ProductList({ onHomeClick }) {
         padding: '15px',
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center', // 🔧 fix typo
+        alignItems: 'center',
         fontSize: '20px',
     };
     const styleObjUl = {
@@ -113,14 +118,7 @@ function ProductList({ onHomeClick }) {
     };
 
     const handleAddToCart = (product) => {
-        // 🚀 Send to Redux
         dispatch(addItem(product));
-
-        // Local button state (optional visual feedback)
-        setAddedToCart((prev) => ({
-            ...prev,
-            [product.name]: true,
-        }));
     };
 
     return (
@@ -138,16 +136,19 @@ function ProductList({ onHomeClick }) {
                     </div>
                 </div>
                 <div style={styleObjUl}>
-                    <div><a href="#" onClick={handlePlantsClick} style={styleA}>Plants</a></div>
+                    <div><a href="#" onClick={(e) => { e.preventDefault(); setShowPlants(true); setShowCart(false); }} style={styleA}>Plants</a></div>
+
                     <div>
-                        <a href="#" onClick={handleCartClick} style={styleA}>
-                            <h1 className='cart'>
+                        <a href="#" onClick={(e) => { e.preventDefault(); setShowCart(true); }} style={styleA}>
+                            <h1 className="cart">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" height="68" width="68">
                                     <rect width="156" height="156" fill="none"></rect>
                                     <circle cx="80" cy="216" r="12"></circle>
                                     <circle cx="184" cy="216" r="12"></circle>
                                     <path d="M42.3,72H221.7l-26.4,92.4A15.9,15.9,0,0,1,179.9,176H84.1a15.9,15.9,0,0,1-15.4-11.6L32.5,37.8A8,8,0,0,0,24.8,32H8" fill="none" stroke="#faf9f9" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
                                 </svg>
+
+                                {cartCount > 0 && <span className="cart-count-badge">{cartCount}</span>}
                             </h1>
                         </a>
                     </div>
@@ -156,7 +157,6 @@ function ProductList({ onHomeClick }) {
 
             {!showCart ? (
                 <>
-                    {/* Only render grid after clicking "Plants" */}
                     {showPlants && (
                         <div className="product-grid">
                             {plantsArray.map((category, index) => (
@@ -164,28 +164,27 @@ function ProductList({ onHomeClick }) {
                                     <h1><div>{category.category}</div></h1>
 
                                     <div className="product-list">
-                                        {category.plants.map((plant, plantIndex) => (
-                                            <div className="product-card" key={`${plant.name}-${plantIndex}`}>
-                                                <img
-                                                    className="product-image"
-                                                    src={plant.image}
-                                                    alt={plant.name}
-                                                    loading="lazy"
-                                                />
-                                                <div className="product-title">{plant.name}</div>
-                                                <div className="product-description">{plant.description}</div>
-                                                {/* 🔧 plant.cost already includes the '$' sign */}
-                                                <div className="product-cost">{plant.cost}</div>
+                                        {category.plants.map((plant, plantIndex) => {
+                                            // ✅ item present in cart? (keys by name per your slice)
+                                            const isInCart = cartItems.some(it => it.name === plant.name);
 
-                                                <button
-                                                    className="product-button"
-                                                    onClick={() => handleAddToCart(plant)}
-                                                    disabled={!!addedToCart[plant.name]}
-                                                >
-                                                    {addedToCart[plant.name] ? 'Added' : 'Add to Cart'}
-                                                </button>
-                                            </div>
-                                        ))}
+                                            return (
+                                                <div className="product-card" key={`${plant.name}-${plantIndex}`}>
+                                                    <img className="product-image" src={plant.image} alt={plant.name} loading="lazy" />
+                                                    <div className="product-title">{plant.name}</div>
+                                                    <div className="product-description">{plant.description}</div>
+                                                    <div className="product-cost">{plant.cost}</div>
+
+                                                    <button
+                                                        className="product-button"
+                                                        onClick={() => handleAddToCart(plant)}
+                                                        disabled={isInCart}
+                                                    >
+                                                        {isInCart ? 'Added to Cart' : 'Add to Cart'}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ))}
@@ -193,7 +192,7 @@ function ProductList({ onHomeClick }) {
                     )}
                 </>
             ) : (
-                <CartItem onContinueShopping={handleContinueShopping} />
+                <CartItem onContinueShopping={(e) => { e.preventDefault(); setShowCart(false); }} />
             )}
         </div>
     );
